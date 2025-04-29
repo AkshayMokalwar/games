@@ -14,6 +14,10 @@ from movies.models import Movie, Clue
 import random
 import string
 
+@login_required
+def test_ws(request):
+    return render(request, 'users/test_ws.html')
+
 def generate_session_code(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 

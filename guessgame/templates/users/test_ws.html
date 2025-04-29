@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %} {{ request.user.username }} | {% endblock %}
+
+{% block content %}
+<div class="p-10 lg:p-20 text-center">
+    <h1 class="text-3xl lg:text-6xl text-white">{{ request.user.username }}</h1>
+</div>
+
+<div class="lg:w-2/4 mx-4 lg:mx-auto p-4 bg-white rounded-xl">
+    <div class="chat-messages space-y-3" id="chat-messages">
+        {% comment %} Messages will be inserted here {% endcomment %}
+    </div>
+</div>
+
+
+<div class="text-center mb-3 value_selector"  >
+</div>
+<div class="text-center">
+    <button class="btn btn-warning reveal">Reveal Image</button>
+</div>
+
+
+ <!-- end -->
+
+<div class="lg:w-2/4 mt-6 mx-4 lg:mx-auto p-4 bg-white rounded-xl">
+    <form id="chat-form" class="flex">
+        {% csrf_token %}
+        <input type="text" name="content" class="flex-1 mr-3" placeholder="Your message..." id="chat-message-input">
+        <button 
+            type="submit"
+            class="px-5 py-3 rounded-xl text-white bg-teal-600 hover:bg-teal-700"
+            id="chat-message-submit"
+        >Submit</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ request.user.username|json_script:"json-username" }}
+
+<script>
+    const userName = JSON.parse(document.getElementById('json-username').textContent);
+    
+    // Important: Use "wss://" if the site is HTTPS, otherwise "ws://"
+    const loc = window.location;
+    const wsStart = loc.protocol === "https:" ? "wss://" : "ws://";
+    alert(wsStart + loc.host + "/ws/gameroom/");
+    const chatSocket = new WebSocket(wsStart + loc.host + "/ws/gameroom/");  // <-- updated websocket path
+
+    chatSocket.onopen = function(e) {
+        console.log('WebSocket connection opened!');
+        const data = JSON.parse(e.data);
+
+        let html = '';
+        if (data.inverted_dictionary) {
+            data.inverted_dictionary.forEach(element => {
+                alert(element.movie);
+                alert(element.clue);
+
+                html += '<p>' + element.content + '</p>';
+            });
+            document.querySelector('.value_selector').innerHTML += html;
+            scrollToBottom();
+
+        } else {
+            console.error("Empty message received");
+        }
+            
+        
+            
+        
+    };
+
+    // let lastMessageTimestamp = ''; 
+
+chatSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+
+    if (data.chat_history) {
+        let html = 'something';
+
+        // data.chat_history.forEach(element => {
+        //     // Ensure the timestamp is correctly parsed into a Date object
+        //     const currentTimestamp = new Date(element.timestamp);
+        //     // alert(currentTimestamp)
+        //     // Only append new messages that are newer than the last displayed message
+        //     if (lastMessageTimestamp === '' || currentTimestamp > new Date(lastMessageTimestamp)) {
+        //         html += '<b>' + element.sender +' '+ element.timestamp +':</b> <p class="msg-' + element.sender + '">' + element.content + '</p><br>';
+
+        //         // Update the last displayed message timestamp
+        //         lastMessageTimestamp = element.timestamp;
+        //     }
+        // });
+
+        // Append new messages to the chat container
+        document.querySelector('#chat-messages').innerHTML += html;
+        scrollToBottom();
+    } else {
+        console.error("Empty message received");
+    }
+};
+
+
+
+    chatSocket.onclose = function(e) {
+        console.log('WebSocket connection closed unexpectedly');
+    };
+
+    document.getElementById('chat-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const messageInputDom = document.getElementById('chat-message-input');
+        const message = messageInputDom.value.trim();
+        if (message.length > 0 && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({
+                'message': message,
+                'username': userName,
+            }));
+
+            messageInputDom.value = '';
+            messageInputDom.focus();
+        } else {
+            console.log('Message empty or WebSocket not ready');
+        }
+    });
+
+    function scrollToBottom() {
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    scrollToBottom();
+</script>
+{% endblock %}
