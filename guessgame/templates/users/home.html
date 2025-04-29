@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="quiz-container">
+    {% for clue in clues %}
+    <div class="clue-card" data-clue-id="{{ clue.id }}">
+        {% if clue.clue_type == 'IMG' %}
+            <img src="{{ clue.content }}" class="blurred-image">
+        {% else %}
+            <p>{{ clue.content }}</p>
+        {% endif %}
+        
+        <input type="text" class="answer-input">
+        <button class="submit-answer">Submit</button>
+        
+        <div class="lifelines">
+            <button class="hint-btn">Hint</button>
+            <button class="skip-btn">Skip</button>
+            <button class="fifty-fifty-btn">50/50</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

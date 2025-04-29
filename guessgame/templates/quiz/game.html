@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken'); // ✅ Now this is defined
+    </script>
+    
+<div class="container py-4">
+
+    <div class="text-end mb-3">
+        <span class="badge bg-primary fs-5">Score: <span id="score">0</span></span>
+    </div>
+
+    {% for movie, clues in inverted_dictionary.items %}
+  
+    <div class="card mb-4 movie-card"  style="{% if not forloop.first %}display:none;{% endif %}">
+        <div class="card-body">
+            
+            {% for clue in clues %}
+            {% if clue.clue_type == 'IMG' %}
+
+                <div class="text-center mb-3 value_selector"  >
+                    <img src="{% static clue.content %}" class="movie-still img-fluid rounded shadow" style="max-width: 500px; filter: blur(8px);">
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-warning reveal">Reveal Image</button>
+                </div>
+                {% endif %}
+            {% endfor %}
+
+            <div class="guess-area mt-4" style="display:none;">
+                <p class="fw-bold">Time left: <span class="timer text-danger">20</span>s</p>
+                
+                <div class="guess-inputs">
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control input" placeholder="Guess 1">
+                        <input type="hidden" class="timestamp">
+                    </div>
+                </div>
+            
+                <button class="btn btn-outline-secondary btn-sm mb-2 add-guess">
+                    <i class="bi bi-plus-circle"></i> Add another guess
+                </button>
+            
+                <br>
+                <button class="btn btn-success submit-answer" data-clue-id="{{ clue.id }}"
+                data-session-code="{{ session_id }}" data-movie_exp="{{ movie }}">Submit Guesses</button>
+            </div>
+           
+
+            <div class="show-answer-area mt-3" style="display:none;">
+                <button class="btn btn-info show-answer">Show Answer</button>
+            </div>
+
+            <p class="reveal-answer mt-3 fw-bold fs-5" style="display:none;">🎬 Answer: <strong>{{ movie }}</strong></p>
+            <button class="btn btn-primary mt-3 next-btn" style="display:none;">Next</button>
+
+            <input type="hidden" class="output" value="{{ movie }}">
+        </div>
+    </div>
+    {% endfor %}
+
+    <div id="final-score" class="text-center mt-5" style="display:none;">
+        <h2 class="fw-bold">Final Score: <span id="finalScore"></span> / {{ inverted_dictionary|length }}</h2>
+        <p class="text-muted">Thanks for playing!</p>
+        <a href="/dashboard/">
+        <button id="exits">exits</button></a>
+    </div>
+</div>
+
+
+    <script>
+    let score = 0; // Global
+    function ansconfirm(button) {
+    const card = $(button).closest(".movie-card");
+    const clueId = $(button).data("clue-id");
+    const sessionCode = $(button).data("session-code");
+    const movieExp = $(button).data("movie_exp");
+
+    const guesses = [];
+    card.find(".input").each(function () {
+        guesses.push({
+            guess: $(this).val(),
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    guesses.forEach(g => {
+        $.ajax({
+            url: "/submit_guess/",
+            method: "POST",
+            data: JSON.stringify({
+                clue_id: clueId,
+                session_code: sessionCode,
+                movie_exp: movieExp,
+                guess: g.guess,
+                timestamp: g.timestamp
+            }),
+            headers: { "X-CSRFToken": csrftoken },
+            contentType: "application/json",
+            success: function (data) {
+                if (data.correct) {
+                    alert("✅ Correct!");
+                    score++;
+                    $("#score").text(score);
+
+                    // ✅ Trigger the timer to end early
+                    const interval = card.data("interval");
+                    if (interval) {
+                        clearInterval(interval);
+                        card.find(".submit-answer").prop("disabled", true);
+                        card.find(".show-answer-area").show();
+                    }
+                } else {
+                    alert("❌ Incorrect.");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert("🚨 Error: " + (xhr.responseText || error));
+            }
+        });
+    });
+}
+
+
+    $(document).ready(function () {
+        let currentIndex = 0;
+        const total = $(".movie-card").length;
+
+        function startTimer(card) {
+            let timeLeft = 20;
+            const timerSpan = card.find(".timer");
+            const interval = setInterval(function () {
+                timeLeft--;
+                timerSpan.text(timeLeft);
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    card.find(".submit-answer").prop("disabled", true);
+                    card.find(".show-answer-area").show();
+                }
+            }, 1000);
+            card.data("interval", interval);
+        }
+
+        function showAnswer(card) {
+            clearInterval(card.data("interval"));
+            card.find(".guess-area").hide();
+            card.find(".show-answer-area").hide();
+            card.find(".reveal-answer").show();
+            card.find(".next-btn").show();
+        }
+
+        $(".reveal").click(function () {
+            const card = $(this).closest(".movie-card");
+            card.find(".movie-still").css("filter", "blur(0px)");
+            card.find(".guess-area").slideDown();
+            $(this).hide();
+            startTimer(card);
+        });
+
+        $(".add-guess").click(function () {
+            const card = $(this).closest(".movie-card");
+            const guessInputs = card.find(".guess-inputs");
+            const count = guessInputs.find(".input").length;
+
+            if (count < 3) {
+                const inputHtml = `
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control input" placeholder="Guess ${count + 1}">
+                        <input type="hidden" class="timestamp">
+                    </div>`;
+                guessInputs.append(inputHtml);
+            }
+
+            if (count + 1 >= 3) {
+                $(this).hide();
+            }
+        });
+
+        $(document).on("input", ".input", function () {
+            const timestamp = new Date().toISOString();
+            $(this).siblings(".timestamp").val(timestamp);
+        });
+
+        $(".submit-answer").click(function () {
+            ansconfirm(this); // ✅ pass button to use .data()
+            timeLeft=2;
+        });
+
+        $(".show-answer").click(function () {
+            const card = $(this).closest(".movie-card");
+            showAnswer(card);
+        });
+
+        $(".next-btn").click(function () {
+            const card = $(this).closest(".movie-card");
+            card.hide();
+            currentIndex++;
+
+            if (currentIndex < total) {
+                $(".movie-card").eq(currentIndex).fadeIn();
+            } else {
+                $("#finalScore").text(score);
+                $("#final-score").fadeIn();
+            }
+        });
+    });
+</script>
+
+
+{% endblock %}
