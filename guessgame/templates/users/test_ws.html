@@ -13,17 +13,8 @@
     </div>
 </div>
 
-
-<div class="text-center mb-3 value_selector"  >
-</div>
-<div class="text-center">
-    <button class="btn btn-warning reveal">Reveal Image</button>
-</div>
-
-
  <!-- end -->
-
-<div class="lg:w-2/4 mt-6 mx-4 lg:mx-auto p-4 bg-white rounded-xl">
+ <div class="lg:w-2/4 mt-6 mx-4 lg:mx-auto p-4 bg-white rounded-xl">
     <form id="chat-form" class="flex">
         {% csrf_token %}
         <input type="text" name="content" class="flex-1 mr-3" placeholder="Your message..." id="chat-message-input">
@@ -34,6 +25,8 @@
         >Submit</button>
     </form>
 </div>
+ 
+
 {% endblock %}
 
 {% block scripts %}
@@ -49,55 +42,30 @@
     const chatSocket = new WebSocket(wsStart + loc.host + "/ws/gameroom/");  // <-- updated websocket path
 
     chatSocket.onopen = function(e) {
-        console.log('WebSocket connection opened!');
-        const data = JSON.parse(e.data);
-
-        let html = '';
-        if (data.inverted_dictionary) {
-            data.inverted_dictionary.forEach(element => {
-                alert(element.movie);
-                alert(element.clue);
-
-                html += '<p>' + element.content + '</p>';
-            });
-            document.querySelector('.value_selector').innerHTML += html;
-            scrollToBottom();
-
-        } else {
-            console.error("Empty message received");
-        }
-            
-        
-            
-        
-    };
-
-    // let lastMessageTimestamp = ''; 
+    console.log('WebSocket connection opened!');
+};
 
 chatSocket.onmessage = function(e) {
     const data = JSON.parse(e.data);
 
-    if (data.chat_history) {
-        let html = 'something';
+    if (data.inverted_dictionary) {
+        let html = '';
 
-        // data.chat_history.forEach(element => {
-        //     // Ensure the timestamp is correctly parsed into a Date object
-        //     const currentTimestamp = new Date(element.timestamp);
-        //     // alert(currentTimestamp)
-        //     // Only append new messages that are newer than the last displayed message
-        //     if (lastMessageTimestamp === '' || currentTimestamp > new Date(lastMessageTimestamp)) {
-        //         html += '<b>' + element.sender +' '+ element.timestamp +':</b> <p class="msg-' + element.sender + '">' + element.content + '</p><br>';
+        for (const movieTitle in data.inverted_dictionary) {
+            const clues = data.inverted_dictionary[movieTitle];
+            html += `<h3>${movieTitle}</h3>`;
+            clues.forEach(clue => {
+                html += `<p>${clue.content}</p>`;
+            });
+        }
 
-        //         // Update the last displayed message timestamp
-        //         lastMessageTimestamp = element.timestamp;
-        //     }
-        // });
-
-        // Append new messages to the chat container
         document.querySelector('#chat-messages').innerHTML += html;
         scrollToBottom();
+
+    } else if (data.chat_history) {
+        // your existing chat_history handling
     } else {
-        console.error("Empty message received");
+        console.error("Empty or unknown message format received");
     }
 };
 

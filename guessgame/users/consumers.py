@@ -19,20 +19,24 @@ class GuessGameConsumer(AsyncWebsocketConsumer):
             print(self.room_id)
             # Use a common chat room for everyone
             self.room_group_name = 'global_gamechat_room'  # Fixed room name
+
             self.clues = await self.get_all_clue()
             print(self.clues)
             self.inverted_dictionary=dict()
             for c in self.clues:
                 print(f"c : {c}")
-                # if c.movie.title in ['DDLJ']:
-                if c["movie"] not in self.inverted_dictionary:
-                    self.inverted_dictionary[c["movie"]]=[c]
-                else:
-                    self.inverted_dictionary[c["movie"]].append(c)
+                if c["clue_type"]=='IMG':
+                    # if c.movie.title in ['DDLJ']:
+                    if c["movie"] not in self.inverted_dictionary:
+                        self.inverted_dictionary[c["movie"]]=[c]
+                    else:
+                        self.inverted_dictionary[c["movie"]].append(c)
+
+            print(self.inverted_dictionary)
 
             await self.channel_layer.group_add(
                 self.room_group_name,
-                self.channel_name,
+                self.channel_name
 
             )
             await self.accept()
@@ -41,6 +45,14 @@ class GuessGameConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({
                 'inverted_dictionary': self.inverted_dictionary,
             }))
+            await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'send_clues',
+                'inverted_dictionary': self.inverted_dictionary,
+                # 'chat_history': self.chat_history
+            }
+        )
             
 
     async def disconnect(self, close_code):
@@ -76,18 +88,14 @@ class GuessGameConsumer(AsyncWebsocketConsumer):
     # #         }
     # #     )
 
-    # # async def receive_group_message(self, event):
-    # #     # Send to WebSocket (no need manual double send!)
-    # #     await self.send(text_data=json.dumps({
-    # #         'chat_history': event['chat_history']
-    # #     }))
+    async def send_clues(self, event):
+        # Send to WebSocket (no need manual double send!)
+        await self.send(text_data=json.dumps({
+            'inverted_dictionary': event['inverted_dictionary']
+        }))
 
     @database_sync_to_async
     def get_all_clue(self):
-        clue = Clue.objects.all()
-
-        # return [clue]
-    
         clues = Clue.objects.select_related('movie').all()
 
         return [
