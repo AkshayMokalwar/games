@@ -25,12 +25,12 @@ class GuessGameConsumer(AsyncWebsocketConsumer):
             self.inverted_dictionary=dict()
             for c in self.clues:
                 print(f"c : {c}")
-                if c["clue_type"]=='IMG':
-                    # if c.movie.title in ['DDLJ']:
-                    if c["movie"] not in self.inverted_dictionary:
-                        self.inverted_dictionary[c["movie"]]=[c]
-                    else:
-                        self.inverted_dictionary[c["movie"]].append(c)
+                
+                # if c.movie.title in ['DDLJ']:
+                if c["movie"] not in self.inverted_dictionary:
+                    self.inverted_dictionary[c["movie"]]=[c]
+                else:
+                    self.inverted_dictionary[c["movie"]].append(c)
 
             print(self.inverted_dictionary)
 
@@ -41,10 +41,10 @@ class GuessGameConsumer(AsyncWebsocketConsumer):
             )
             await self.accept()
 
-            # Send room name and chat history to the connected user
-            await self.send(text_data=json.dumps({
-                'inverted_dictionary': self.inverted_dictionary,
-            }))
+            # # Send room name and chat history to the connected user
+            # await self.send(text_data=json.dumps({
+            #     'inverted_dictionary': self.inverted_dictionary,
+            # }))
             await self.channel_layer.group_send(
             self.room_group_name,
             {
