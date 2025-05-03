@@ -1,31 +1,24 @@
+import os
+from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
+from django.urls import path,re_path
+from users import consumers
 
-from django.urls import path
-from django.core.asgi import get_asgi_application
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "guessgame.settings")
 
-# Consumer example
-class GuessGameConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        await self.accept()
-        await self.send(text_data="Hello from WebSocket!")
-
-# # Routing for WebSockets
-# application = ProtocolTypeRouter({
-#     "http": get_asgi_application(),
-#     "websocket": URLRouter([
-#         path("ws/guessgame/", GuessGameConsumer.as_asgi()),  # Make sure this matches your route
-#     ]),
-# })
+django_asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter({
-    'websocket': AllowedHostsOriginValidator(
-        AuthMiddlewareStack(
-            URLRouter([
-                    path('ws/messenger/<room_id>/', GuessGameConsumer()), 
-            ])
-        )
-    ),
-})
+        "http": django_asgi_app,
+        "websocket": AllowedHostsOriginValidator(
+            AuthMiddlewareStack(
+                URLRouter([
+                    path("ws/gameroom/", consumers.GuessGameConsumer.as_asgi()),
+                    # re_path("ws/gameroom/(?P<room_id>\w+)/$", consumers.GuessGameConsumer.as_asgi(),
+
+                ])
+            )
+        ),
+    })

@@ -33,7 +33,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    "channels",
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -54,6 +54,12 @@ AUTH_USER_MODEL = 'auth.User'
 # ASGI_APPLICATION = 'guessgame.asgi.application'
 ASGI_APPLICATION  = "guessgame.asgi.application"
 
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -96,14 +102,7 @@ DATABASES = {
     }
 }
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-         'CONFIG': {
-            "hosts": [('http://127.0.0.1:8000/','127.0.0.1', 8000)],
-        },
-    },
-}
+
 
 
 # Password validation

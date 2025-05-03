@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %} {{ request.user.username }} | {% endblock %}
+
+{% block content %}
+<div class="p-10 lg:p-20 text-center">
+    <h1 class="text-3xl lg:text-6xl text-white">{{ request.user.username }}</h1>
+</div>
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken'); // ✅ Now this is defined
+    </script>
+    
+<div class="container py-4">
+
+    <div class="text-end mb-3">
+        <span class="badge bg-primary fs-5">Score: <span id="score">0</span></span>
+    </div>
+   
+    <div id="center_content"
+     ></div>
+
+
+    <div id="final-score" class="text-center mt-5" style="display:none;">
+        <h2 class="fw-bold">Final Score: <span id="finalScore"></span> </h2>
+        <p class="text-muted">Thanks for playing!</p>
+        <a href="/test_ws/">
+        <button id="exits">exits</button></a>
+        <a href="/test_ws/">
+            <button id="Replay">Replay</button></a>
+    </div>
+</div>
+
+
+
+
+{% endblock %}
+
+{% block scripts %}
+{{ request.user.username|json_script:"json-username" }}
+
+<script>
+    let total_movie=0
+    const userName = JSON.parse(document.getElementById('json-username').textContent);
+    
+    // Important: Use "wss://" if the site is HTTPS, otherwise "ws://"
+    const loc = window.location;
+    const wsStart = loc.protocol === "https:" ? "wss://" : "ws://";
+    alert(wsStart + loc.host + "/ws/gameroom/");
+    const chatSocket = new WebSocket(wsStart + loc.host + "/ws/gameroom/");  // <-- updated websocket path
+
+    chatSocket.onopen = function(e) {
+    console.log('WebSocket connection opened!');
+};
+
+chatSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+
+    if (data.inverted_dictionary) {
+        let html = '';
+        let cardIndex = 0;
+        console.log(data.inverted_dictionary)
+        for (var movieTitle in data.inverted_dictionary) {
+            var clues = data.inverted_dictionary[movieTitle];
+            
+            var clue_header = "";
+           
+            var temp={}
+
+            clues.forEach(clue => { 
+
+                 clue_header = clue.clue_type=='DLG' ? clue.content : '';
+               
+            });
+            // alert(clue_header);
+
+
+            clues.forEach(clue => {
+                if(clue.clue_type=='IMG' ){
+                    var displayStyle = cardIndex == 0 ? "" : "display:none;";
+                    cardIndex +=1;
+                    total_movie+=1;
+
+            
+                html+=`<div class="card mb-4 movie-card"  style=${displayStyle} >
+                        <div class="card-body">
+
+                                <h2>${clue_header }</h2>
+                                
+                                <div class="text-center mb-3 value_selector"  >
+                                    <img src="/static/${clue.content}" class="movie-still img-fluid rounded shadow" style="max-width: 500px; filter: blur(8px);">
+                                </div>
+                                <div class="text-center">
+                                    <button class="btn btn-warning reveal">Reveal Image</button>
+                                </div>
+                            
+
+                            <div class="guess-area mt-4" style="display:none;">
+                                <p class="fw-bold">Time left: <span class="timer text-danger">20</span>s</p>
+                                
+                                <div class="guess-inputs">
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control input" placeholder="Guess 1">
+                                        <input type="hidden" class="timestamp">
+                                    </div>
+                                </div>
+                            
+                                <button class="btn btn-outline-secondary btn-sm mb-2 add-guess">
+                                    <i class="bi bi-plus-circle"></i> Add another guess
+                                </button>
+                            
+                                <br>
+                                <button class="btn btn-success submit-answer" data-clue-id="${clue.content}"
+                                data-session-code="${clue.content}" data-movie_exp="${movieTitle}">Submit Guesses</button>
+                            </div>
+                        
+
+                            <div class="show-answer-area mt-3" style="display:none;">
+                                <button class="btn btn-info show-answer">Show Answer</button>
+                            </div>
+
+                            <p class="reveal-answer mt-3 fw-bold fs-5" style="display:none;">🎬 Answer: <strong>${movieTitle}</strong></p>
+                            <button class="btn btn-primary mt-3 next-btn" style="display:none;">Next</button>
+
+                            <input type="hidden" class="output" value="${movieTitle}">
+                        </div>
+                    </div>`
+                }
+
+                
+                });
+        }
+        document.querySelector('#center_content').innerHTML = html;
+
+        // $('#center_content').html(html);
+        // scrollToBottom();
+    } 
+
+     else {
+        console.error("Empty or unknown message format received");
+    }
+};
+
+
+
+    chatSocket.onclose = function(e) {
+        console.log('WebSocket connection closed unexpectedly');
+    };
+
+
+    // function scrollToBottom() {
+    //     const chatMessages = document.getElementById('chat-messages');
+    //     chatMessages.scrollTop = chatMessages.scrollHeight;
+    // }
+
+    // scrollToBottom();
+</script>
+
+<script>
+    let score = 0; // Global
+    function ansconfirm(button) {
+    const card = $(button).closest(".movie-card");
+    const clueId = $(button).data("clue-id");
+    const sessionCode = $(button).data("session-code");
+    const movieExp = $(button).data("movie_exp");
+
+    const guesses = [];
+    card.find(".input").each(function () {
+        guesses.push({
+            guess: $(this).val(),
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    guesses.forEach(g => {
+        $.ajax({
+            url: "/submit_guess/",
+            method: "POST",
+            data: JSON.stringify({
+                clue_id: clueId,
+                session_code: sessionCode,
+                movie_exp: movieExp,
+                guess: g.guess,
+                timestamp: g.timestamp
+            }),
+            headers: { "X-CSRFToken": csrftoken },
+            contentType: "application/json",
+            success: function (data) {
+                if (data.correct) {
+                    alert("✅ Correct!");
+                    score++;
+                    $("#score").text(score);
+
+                    // ✅ Trigger the timer to end early
+                    const interval = card.data("interval");
+                    if (interval) {
+                        clearInterval(interval);
+                        card.find(".submit-answer").prop("disabled", true);
+                        card.find(".show-answer-area").show();
+                    }
+                } else {
+                    alert("❌ Incorrect.");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert("🚨 Error: " + (xhr.responseText || error));
+            }
+        });
+    });
+}
+
+
+    $(document).ready(function () {
+        let currentIndex = 0;
+        const total = $(".movie-card").length;
+
+        function startTimer(card) {
+            let timeLeft = 20;
+            const timerSpan = card.find(".timer");
+            const interval = setInterval(function () {
+                timeLeft--;
+                timerSpan.text(timeLeft);
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    card.find(".submit-answer").prop("disabled", true);
+                    card.find(".show-answer-area").show();
+                }
+            }, 1000);
+            card.data("interval", interval);
+        }
+
+        function showAnswer(card) {
+            clearInterval(card.data("interval"));
+            card.find(".guess-area").hide();
+            card.find(".show-answer-area").hide();
+            card.find(".reveal-answer").show();
+            card.find(".next-btn").show();
+        }
+
+        $(document).on("click", ".reveal", function () {
+
+            const card = $(this).closest(".movie-card");
+            card.find(".movie-still").css("filter", "blur(0px)");
+            card.find(".guess-area").slideDown();
+            $(this).hide();
+            startTimer(card);
+        });
+
+       $(document).on("click",".add-guess", function () {
+            const card = $(this).closest(".movie-card");
+            const guessInputs = card.find(".guess-inputs");
+            const count = guessInputs.find(".input").length;
+
+            if (count < 3) {
+                const inputHtml = `
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control input" placeholder="Guess ${count + 1}">
+                        <input type="hidden" class="timestamp">
+                    </div>`;
+                guessInputs.append(inputHtml);
+            }
+
+            if (count + 1 >= 3) {
+                $(this).hide();
+            }
+        });
+
+        $(document).on("input", ".input", function () {
+            const timestamp = new Date().toISOString();
+            $(this).siblings(".timestamp").val(timestamp);
+        });
+
+        $(document).on("click",".submit-answer",function () {
+            ansconfirm(this); // ✅ pass button to use .data()
+            timeLeft=2;
+        });
+
+        $(document).on("click",".show-answer",function () {
+            const card = $(this).closest(".movie-card");
+            showAnswer(card);
+        });
+
+
+        // let currentIndex = 0;
+
+        $(document).on("click", ".next-btn", function () {
+            const cards = $(".movie-card");
+            cards.eq(currentIndex).hide();      // Hide current card
+            currentIndex++;                     // Move to next index
+
+            if (currentIndex < cards.length) {
+                cards.eq(currentIndex).fadeIn(); // Show next
+            } else {
+                $("#finalScore").text(score+'/'+total_movie);
+                $("#final-score").fadeIn();
+            }
+        });
+
+
+
+
+    });
+</script>
+
+{% endblock %}
