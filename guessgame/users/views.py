@@ -15,8 +15,10 @@ import random
 import string
 
 @login_required
-def test_ws(request):
-    return render(request, 'users/test_ws.html')
+def test_ws(request,session_code):
+    user=request.user.userprofile
+    print(f"user : {user}")
+    return render(request, 'users/test_ws.html',{'user':user,'session_code':session_code})
 
 def generate_session_code(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))

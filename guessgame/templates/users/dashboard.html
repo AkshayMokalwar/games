@@ -18,12 +18,15 @@
 
             
             {%for session in hosted_sessions%}
-            <a href="/quiz/start/casual/{{session.session_code}}">Hosted : {{session.session_code}}Start Q</a>
+            <!-- <a href="/quiz/start/casual/{{session.session_code}}">Hosted : {{session.session_code}}Start Q</a> -->
+            <a href="/test_ws/{{session.session_code}}">Hosted : {{session.session_code}}Start Q</a>
             
             {%endfor%}
             {%for session in participated_sessions%}
             <br>
-            <a href="/quiz/start/casual/{{session.session_code}}">participated_session : {{session.session_code}}Start Q</a>
+            <!-- <a href="/quiz/start/casual/{{session.session_code}}">participated_session : {{session.session_code}}Start Q</a> -->
+            <a href="/test_ws/{{session.session_code}}">participated_session : {{session.session_code}}Start Q</a>
+            
             {%endfor%}
             
         </div>

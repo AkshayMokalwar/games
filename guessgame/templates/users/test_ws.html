@@ -1,12 +1,48 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %} {{ request.user.username }} | {% endblock %}
+{% block title %} {{ request.user.username }} | {% endblock title %}
 
-{% block content %}
+{% block left_content %}
 <div class="p-10 lg:p-20 text-center">
     <h1 class="text-3xl lg:text-6xl text-white">{{ request.user.username }}</h1>
 </div>
+
+<div id="final-score" class="text-center mt-5" style="display:none;">
+    <h2 class="fw-bold">Final Score: <span id="finalScore"></span> </h2>
+    <p class="text-muted">Thanks for playing!</p>
+    <a href="/test_ws/{{session_code}}">
+    <button id="exits">exits</button></a>
+    <a href="/test_ws/{{session_code}}">
+        <button id="Replay">Replay</button></a>
+</div>
+{{user}}{{session_code}}
+<div class="lg:w-2/4 mx-4 lg:mx-auto p-4 bg-white rounded-xl">
+    <div class="text-end mb-3">
+        <span class="badge bg-primary fs-5">Score: <span id="score">0</span></span>
+    </div>
+    <div class="leader-boards space-y-3" id="leader-boards" style="max-height: 80vh; overflow-y: auto;">
+        Rank :
+    </div>
+</div>
+
+
+
+{%endblock left_content%}
+
+{% block right_content %}
+
+{{ request.user.username|json_script:"json-username" }}
+<div class="container py-4">
+
+    <div id="center_content"
+    ></div>
+
+</div>
+
+   
+     
+
 
 <script>
     function getCookie(name) {
@@ -27,34 +63,6 @@
     
     const csrftoken = getCookie('csrftoken'); // ✅ Now this is defined
     </script>
-    
-<div class="container py-4">
-
-    <div class="text-end mb-3">
-        <span class="badge bg-primary fs-5">Score: <span id="score">0</span></span>
-    </div>
-   
-    <div id="center_content"
-     ></div>
-
-
-    <div id="final-score" class="text-center mt-5" style="display:none;">
-        <h2 class="fw-bold">Final Score: <span id="finalScore"></span> </h2>
-        <p class="text-muted">Thanks for playing!</p>
-        <a href="/test_ws/">
-        <button id="exits">exits</button></a>
-        <a href="/test_ws/">
-            <button id="Replay">Replay</button></a>
-    </div>
-</div>
-
-
-
-
-{% endblock %}
-
-{% block scripts %}
-{{ request.user.username|json_script:"json-username" }}
 
 <script>
     let total_movie=0
@@ -63,22 +71,32 @@
     // Important: Use "wss://" if the site is HTTPS, otherwise "ws://"
     const loc = window.location;
     const wsStart = loc.protocol === "https:" ? "wss://" : "ws://";
-    alert(wsStart + loc.host + "/ws/gameroom/");
+    // alert(wsStart + loc.host + "/ws/gameroom/");
     const chatSocket = new WebSocket(wsStart + loc.host + "/ws/gameroom/");  // <-- updated websocket path
 
     chatSocket.onopen = function(e) {
     console.log('WebSocket connection opened!');
 };
 
+var card = $(this).closest(".movie-card");
+
 chatSocket.onmessage = function(e) {
     const data = JSON.parse(e.data);
+    // alert(data);
+    // get_questions
+    // get_updates
+    
+    if (data['get_questions'] && Array.isArray(data['get_questions']) && data['get_questions'].length > 0) {
+        for (var id_key in data['get_questions']){
+           
+            // const questionData = data['get_questions'][0]; // Access the first object in the 'get_questions' list
+            // alert(JSON.stringify(questionData));
 
-    if (data.inverted_dictionary) {
         let html = '';
         let cardIndex = 0;
-        console.log(data.inverted_dictionary)
-        for (var movieTitle in data.inverted_dictionary) {
-            var clues = data.inverted_dictionary[movieTitle];
+        console.log(data['get_questions'][id_key])
+        for (var movieTitle in data['get_questions'][id_key]) {
+            var clues =data['get_questions'][id_key][movieTitle];
             
             var clue_header = "";
            
@@ -117,7 +135,7 @@ chatSocket.onmessage = function(e) {
                                 
                                 <div class="guess-inputs">
                                     <div class="input-group mb-2">
-                                        <input type="text" class="form-control input" placeholder="Guess 1">
+                                        <input type="text" id= "{{user}}{{session_code}}" class="form-control input" placeholder="Guess 1">
                                         <input type="hidden" class="timestamp">
                                     </div>
                                 </div>
@@ -130,16 +148,17 @@ chatSocket.onmessage = function(e) {
                                 <button class="btn btn-success submit-answer" data-clue-id="${clue.content}"
                                 data-session-code="${clue.content}" data-movie_exp="${movieTitle}">Submit Guesses</button>
                             </div>
-                        
+                            <p class="reveal-answer mt-3 fw-bold fs-5" style="display:none;">🎬 Answer: <strong>${movieTitle}</strong></p>
 
                             <div class="show-answer-area mt-3" style="display:none;">
                                 <button class="btn btn-info show-answer">Show Answer</button>
+                                <button class="btn btn-info next-btn" >Next</button>
+
                             </div>
 
-                            <p class="reveal-answer mt-3 fw-bold fs-5" style="display:none;">🎬 Answer: <strong>${movieTitle}</strong></p>
-                            <button class="btn btn-primary mt-3 next-btn" style="display:none;">Next</button>
-
+                            
                             <input type="hidden" class="output" value="${movieTitle}">
+                          
                         </div>
                     </div>`
                 }
@@ -147,15 +166,65 @@ chatSocket.onmessage = function(e) {
                 
                 });
         }
-        document.querySelector('#center_content').innerHTML = html;
+
+        // document.querySelector('#center_content').innerHTML = html;
+        $('#center_content').html(html);
+
 
         // $('#center_content').html(html);
         // scrollToBottom();
+    }
     } 
 
      else {
-        console.error("Empty or unknown message format received");
+        if (data['get_updates'] && Array.isArray(data['get_updates']) && data['get_updates'].length > 0) {
+            for (var id_key in data['get_updates']){
+
+                const updateData = data['get_updates'][id_key];
+                const rankDiv = $("#leader-boards");
+                const user = updateData.user; // Adjust property name as needed
+                const result = updateData.result; // Adjust property name as needed
+                const timestamp = updateData.timestamp; // Adjust property name as needed
+                const guess = updateData.guess; // Adjust property name as needed
+                const clueId= updateData.clueId; // Adjust property name as needed
+                const card = $(`.submit-answer[data-clue-id='${clueId}']`).closest(".movie-card");
+               
+                if (result =='correct'){
+            
+                    const card = $(`.submit-answer[data-clue-id='${clueId}']`).closest(".movie-card");
+                    score++;
+                    $("#score").text(score);
+
+                    // ✅ Trigger the timer to end early
+                    const interval = card.data("interval");
+                    if (interval) {
+                        clearInterval(interval);
+                        card.find(".submit-answer").prop("disabled", true);
+                        card.find(".show-answer-area").show();
+                    }
+                    const rankEntry = $(`<p>user: ${user},result:✅ ${result}, timestamp: ${timestamp}</p>`);
+                    rankDiv.append(rankEntry);
+                    rankDiv.scrollTop(rankDiv[0].scrollHeight);
+                    }
+                else{
+                    const rankEntry = $(`<p>user: ${user},result: ❌ ${result}, timestamp: ${timestamp}</p>`);
+                    // Append the new element to the leader-boards div
+                    rankDiv.append(rankEntry);
+                    rankDiv.scrollTop(rankDiv[0].scrollHeight); 
+                    
+                }
+                
+                // rankDiv.append(rankEntry);
+                        
+
+            }
+           
+
+        }
+         else{console.error("Empty or unknown message format received");}
+        
     }
+
 };
 
 
@@ -204,7 +273,7 @@ chatSocket.onmessage = function(e) {
             contentType: "application/json",
             success: function (data) {
                 if (data.correct) {
-                    alert("✅ Correct!");
+                    // alert("✅ Correct!");
                     score++;
                     $("#score").text(score);
 
@@ -216,7 +285,7 @@ chatSocket.onmessage = function(e) {
                         card.find(".show-answer-area").show();
                     }
                 } else {
-                    alert("❌ Incorrect.");
+                    // alert("❌ Incorrect.");
                 }
             },
             error: function (xhr, status, error) {
@@ -250,7 +319,7 @@ chatSocket.onmessage = function(e) {
         function showAnswer(card) {
             clearInterval(card.data("interval"));
             card.find(".guess-area").hide();
-            card.find(".show-answer-area").hide();
+            card.find(".show-answer").hide();
             card.find(".reveal-answer").show();
             card.find(".next-btn").show();
         }
@@ -288,14 +357,48 @@ chatSocket.onmessage = function(e) {
             $(this).siblings(".timestamp").val(timestamp);
         });
 
+       
+
         $(document).on("click",".submit-answer",function () {
-            ansconfirm(this); // ✅ pass button to use .data()
-            timeLeft=2;
+            const card = $(this).closest(".movie-card");
+            const clueId = $(this).data("clue-id");
+            const sessionCode = $(this).data("session-code");
+            const movieExp = $(this).data("movie_exp");
+
+            const guesses = [];
+            card.find(".input").each(function () {
+                guesses.push({
+                    guess: $(this).val(),
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            guesses.forEach(g => {
+
+                // e.preventDefault();
+                // const message = messageInputDom.value.trim();
+                if (g.guess.length > 0 && chatSocket.readyState === WebSocket.OPEN) {
+                    chatSocket.send(JSON.stringify({
+                        
+                        'clue_id': clueId,
+                        'session_code': sessionCode,
+                        'movie_exp': movieExp,
+                        'guess': g.guess,
+                        'timestamp': g.timestamp
+                    }));
+
+                } else {
+                    console.log('Guess empty or WebSocket not ready');
+                }
+            });
+      
+            
         });
 
-        $(document).on("click",".show-answer",function () {
-            const card = $(this).closest(".movie-card");
-            showAnswer(card);
+        $(this).closest(".input").on("keypress", function(event) {
+            if (event.key === "Enter") {
+                $(this).closest(".movie-card").find(".submit-answer").click();
+            }
         });
 
 
@@ -313,11 +416,16 @@ chatSocket.onmessage = function(e) {
                 $("#final-score").fadeIn();
             }
         });
-
-
+         $(document).on("keydown", ".input", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                const card = $(this).closest(".movie-card");
+                card.find(".submit-answer").click(); // Or showAnswer(card) if needed
+            }
+        });1
 
 
     });
 </script>
 
-{% endblock %}
+{% endblock right_content%}
